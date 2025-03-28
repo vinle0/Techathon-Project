@@ -154,14 +154,14 @@ function onMessageArrived(topic, message) {
 function turnNextPage() {
 	page_num++;
 	Update_Page_Number();
-	client.publish(w2b, "0");
+	client.publish(w2b, "reqNext"); //right 
 	console.log("Next Page Turned");
 	FH_TestFunction();
 }
 function turnPrevPage() {
 	page_num--;
 	Update_Page_Number();
-	client.publish(w2b, "1");
+	client.publish(w2b, "reqPrev"); //left
 	console.log("Prev Page Turned");
 }
 

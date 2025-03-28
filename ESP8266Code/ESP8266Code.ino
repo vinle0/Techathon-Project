@@ -21,7 +21,7 @@
 
 #define BLYNK_TEMPLATE_ID ""
 #define BLYNK_TEMPLATE_NAME ""
-
+#define I2c_slave_addr 0x24
 
 // ----------------------------------------------------------------
 // ---------------   INCLUDES    ----------------------------------
@@ -30,7 +30,7 @@
 // For use with ESP8266
 #include <ESP8266WiFi.h>            // WiFi drivers
 #include <BlynkSimpleEsp8266.h>     // Blynk timer -- best timer for this appllication
-
+#include <Wire.h>
 // For use with ESP32
 // #include <WiFi.h>
 // #include <Blynk.h>
@@ -44,8 +44,8 @@
 // ----------------  VARIABLES    ---------------------------------         
 //
 char  eid[20]           = "msc3785";        // TODO: Update this with you EID
-char  ssid[64]          = "MC-2022 1976";       // TODO: Update this with your WIFI SSID
-char  password[64]      = "K?66458w";   // TODO: Update this with your WIFI Password
+char  ssid[64]          = "utexas-iot";       // TODO: Update this with your WIFI SSID
+char  password[64]      = "49524930388737977041";   // TODO: Update this with your WIFI Password
 
 // TODO: add more of these depending on your specifications
 // char  clk_mode[5]       = "";
@@ -156,7 +156,7 @@ void Setup_Wifi(void) {
   Serial.flush();                       // Ensure no old data is left in the buffer before signaling RDY 
 
   //Indicate to the connected device that the ESP is ready to recive a command 
-  digitalWrite(RDY, HIGH);              // Set RDY to TM4C
+  // digitalWrite(RDY, HIGH);              // Set RDY to TM4C
   delay (500);                          // Wait before checking if serial data is being sent
 
 
@@ -223,7 +223,34 @@ void Setup_Wifi(void) {
 // ----------------------------------------------------------------
 // -----------------   MAIN SETUP  --------------------------------
 // ----------------------------------------------------------------
+//Specific to our own pins
+#define SCL 2
+#define SDA 0
 
+volatile bool receivedCommand = false;
+
+//Arduino will continually request any potential commands that may come from client, busy-checking
+void requestPotentialInput(){
+  if(receivedCommand){
+    Wire.write(cmd);
+    receivedCommand = false;
+  }
+  else{
+    Wire.write("no");
+  }
+}
+//the only change is turning the page when it is finished
+void receivePage(int howMany){
+  char str[20];
+  for(int i = 0; i < howMany; i++){
+    str[i] = Wire.read();
+  }
+  str[howMany] = '\0';
+  //now with string, send to the web app
+  snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_cmd);
+  client.publish(topic_publish,   str,  1); 
+
+}
 void setup() {
 
   //Setup UART
@@ -233,9 +260,13 @@ void setup() {
   Serial.println("Hello world starting up!");
 
   //Setup GPIO
-  pinMode(0, INPUT);                        // Set GPIO_0 to an input
-  pinMode(2, OUTPUT);                       // Set GPIO_2 to an output - RDY signal to the TM4C
-  digitalWrite(RDY, LOW);                   // Set the RDY pin LOW
+  // pinMode(0, INPUT_PULLUP);                        // Set GPIO_0 to an input
+  // pinMode(2, INPUT_PULLUP);                       // Set GPIO_2 to an output - RDY signal to the TM4C
+  // digitalWrite(RDY, LOW);                   // Set the RDY pin LOW
+
+  Wire.begin(SDA, SCL);
+  Wire.onReceive(receivePage);
+  Wire.onRequest(requestPotentialInput);
 
   //Setup Wifi & MQTT 
   Setup_Wifi();                             // This routine reads in the  EID, SSID, Password
@@ -328,6 +359,7 @@ void callback(char *topic_subscribe, byte *payload, unsigned int length) {
   // Retreive W2B command from received data
   if (length  > 0) {
     strcpy(cmd,    strtok((char *)payload, ""));
+    receivedCommand = true; //send to Arduino
     Serial.println(cmd);                  // Send the command to the TM4C
     Serial.flush();                       // Ensure the serial buffer is emptied
 
@@ -379,7 +411,7 @@ void tm4c2mqtt(void) {
         // client.publish(topic_publish,  hour,     1); 
         
         // snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_min);
-        // client.publish(topic_publish,   minute,  1); 
+        // client.publish(topic_publish,   minute,  1);    
         
         // snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_sec);
         // client.publish(topic_publish,   second,  1); 
@@ -387,8 +419,8 @@ void tm4c2mqtt(void) {
         // snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_sensor);
         // client.publish(topic_publish,   sensor,  1); 
 
-        snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_cmd);
-        client.publish(topic_publish,   command,  1); 
+        // snprintf(topic_publish, sizeof(topic_publish), "%s%s", eid, pub_cmd);
+        // client.publish(topic_publish,   command,  1); 
       }
 
       for (int i = 0; i < SER_BUF_LEN; i++)  (ser_buf[i]) = 0;
