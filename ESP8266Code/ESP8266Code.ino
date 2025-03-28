@@ -44,8 +44,11 @@
 // ----------------  VARIABLES    ---------------------------------         
 //
 char  eid[20]           = "msc3785";        // TODO: Update this with you EID
-char  ssid[64]          = "utexas-iot";       // TODO: Update this with your WIFI SSID
-char  password[64]      = "49524930388737977041";   // TODO: Update this with your WIFI Password
+// char  ssid[64]          = "utexas-iot";       // TODO: Update this with your WIFI SSID
+// char  password[64]      = "49524930388737977041";   // TODO: Update this with your WIFI Password
+
+char  ssid[64]          = "MC-2022 1976";       // TODO: Update this with your WIFI SSID
+char  password[64]      = "K?66458w";   // TODO: Update this with your WIFI Password
 
 // TODO: add more of these depending on your specifications
 // char  clk_mode[5]       = "";
@@ -224,8 +227,8 @@ void Setup_Wifi(void) {
 // -----------------   MAIN SETUP  --------------------------------
 // ----------------------------------------------------------------
 //Specific to our own pins
-#define SCL 2
-#define SDA 0
+#define SCL 0
+#define SDA 2
 
 volatile bool receivedCommand = false;
 
@@ -265,6 +268,7 @@ void setup() {
   // digitalWrite(RDY, LOW);                   // Set the RDY pin LOW
 
   Wire.begin(SDA, SCL);
+  Wire.setClock(10000);
   Wire.onReceive(receivePage);
   Wire.onRequest(requestPotentialInput);
 
@@ -439,8 +443,21 @@ void tm4c2mqtt(void) {
   } 
 }
 
+long lastMsg = 0;
+uint8_t x = 0;
+// const char* msg = "x is ";
 void loop() {
   timer.run();
   client.loop();
+  if (millis() - lastMsg > 500) {
+    Wire.beginTransmission(4); // transmit to device #4
+    // Wire.write((const uint8_t*)msg, strlen(msg));
+    // Wire.write("x is ");        // sends five bytes
+    Wire.write(((uint8_t)x));              // sends one byte  
+    Wire.endTransmission();    // stop transmitting
+    Serial.println("Sent Message! " + String(x));
+    lastMsg = millis();
+    x = (x + 1) % 64;
+  }
 
 }
